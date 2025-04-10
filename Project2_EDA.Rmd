@@ -1,0 +1,135 @@
+---
+title: "project2_draft"
+author: "Erika DuPond"
+date: "2025-04-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+## Including Plots
+
+You can also embed plots, for example:
+```{r pressure, echo=FALSE}
+#install.packages("aplore3")
+library(aplore3)
+
+data <- glow_bonemed
+head(data)
+
+#is.na(data)
+```
+
+```{r}
+library(ggplot2)
+library(GGally)
+library(corrplot)
+library(car)
+library(dplyr)
+
+data <- data %>%
+  mutate(sub_ID = row_number()) %>%
+  select(sub_ID, everything())
+
+head(data)
+```
+
+
+## Set up data and libraries
+```{r}
+# Ensure variables are the right data types
+data$sub_id <- as.numeric(data$sub_ID)
+data$site_id <- as.numeric(data$site_id)
+data$phy_id <- as.numeric(data$phy_id)
+data$priorfrac <- as.factor(data$priorfrac)
+data$age <- as.numeric(data$age)
+data$weight <- as.numeric(data$weight)
+data$height <- as.numeric(data$height)
+data$bmi <- as.numeric(data$bmi)
+data$premeno <- as.factor(data$premeno)
+data$momfrac <- as.factor(data$momfrac)
+data$armassist <- as.factor(data$armassist)
+data$smoke <- as.factor(data$smoke)
+data$raterisk <- as.factor(data$raterisk)
+data$fracscore <- as.numeric(data$fracscore)
+data$fracture <- as.numeric(data$fracture)
+data$bonemed <- as.numeric(data$bonemed)
+data$bonemed_fu <- as.numeric(data$bonemed_fu)
+data$bonetreat <- as.numeric(data$bonetreat)
+
+# # For Driven_Wheels, described as numeric, so turn categories into numerical in a new column
+# vehicle_data <- vehicle_data %>%
+#   mutate(DrivenWheels_Num = recode(tolower(Driven_Wheels),
+#                                    "all wheel drive" = 1,
+#                                    "front wheel drive" = 2,
+#                                    "rear wheel drive" = 3,
+#                                    "four wheel drive" = 4))
+```
+
+## Address Missing Data 
+```{r}
+missing_data <- data %>%
+  filter(if_any(everything(), is.na) | if_any(everything(), ~ . == "N/A"))
+missing_data
+
+## Which columns have the missing data?
+missing_counts <- colSums(is.na(data) | data == "N/A")
+missing_counts <- missing_counts[missing_counts > 0]
+missing_counts
+```
+
+## Basic Statistics + Clean up
+```{r}
+# Examine the structure of the data
+str(data)
+
+# Get summary statistics for all variables
+summary(data)
+
+# Check for missing values in each column
+missing_vals <- colSums(is.na(data))
+missing_vals
+```
+
+## Data Visualization
+```{r}
+# Scatterplots for  Variables
+numeric_vars <- data %>% 
+  dplyr::select(age, bmi, fracscore, bonemed, bonemed_fu, bonetreat)
+
+cat_vars <- data %>%  dplyr::select(priorfrac, premeno, momfrac, armassist, smoke, raterisk, fracture)
+```
+
+
+```{r}
+ggpairs(numeric_vars,
+        lower = list(continuous = wrap("points")),
+        title = "Investigating Variables")
+ggpairs(cat_vars,
+        lower = list(continuous = wrap("points")),
+        title = "Investigating Variables")
+```
+
+
+```{r}
+# Correlation Matrix for Numeric Variables
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+round(cor_matrix, 2)
+
+# Visualize the correlation matrix
+corrplot(cor_matrix, method = "color",
+         addCoef.col = "darkgray",
+         number.cex = 0.7,
+         tl.cex = 0.8,
+         title = "Correlation Matrix for Numeric Variables",
+         mar = c(0, 0, 1, 0))
+```
