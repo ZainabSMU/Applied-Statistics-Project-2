@@ -65,14 +65,6 @@ data$fracture <- as.numeric(data$fracture)
 data$bonemed <- as.numeric(data$bonemed)
 data$bonemed_fu <- as.numeric(data$bonemed_fu)
 data$bonetreat <- as.numeric(data$bonetreat)
-
-# # For Driven_Wheels, described as numeric, so turn categories into numerical in a new column
-# vehicle_data <- vehicle_data %>%
-#   mutate(DrivenWheels_Num = recode(tolower(Driven_Wheels),
-#                                    "all wheel drive" = 1,
-#                                    "front wheel drive" = 2,
-#                                    "rear wheel drive" = 3,
-#                                    "four wheel drive" = 4))
 ```
 
 ## Address Missing Data 
@@ -168,4 +160,19 @@ ggplot(data, aes_string(x = "fracscore", y = "bmi")) +
 #          x = "Bonemed",
 #          y = "Bonemed_Fu") +
 #     theme_minimal()
+
+```{r}
+# Boxplots for MSRP by Each Categorical Predictor
+# Identify categorical variables
+categorical_vars <- c("priorfrac", "premeno", "momfrac", "armassist", "smoke", "raterisk")
+for (var in categorical_vars) {
+  p <- ggplot(data, aes_string(x = var, y = "fracscore")) +
+    geom_boxplot(fill = "lightblue") +
+    labs(title = paste("Fracture Score by", var),
+         x = var,
+         y = "fracscore") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  print(p)
+}
 ```
