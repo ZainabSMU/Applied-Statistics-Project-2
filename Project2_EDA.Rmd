@@ -133,3 +133,39 @@ corrplot(cor_matrix, method = "color",
          title = "Correlation Matrix for Numeric Variables",
          mar = c(0, 0, 1, 0))
 ```
+
+```{r}
+# Scatterplots of MSRP vs. Highest Correlating Numeric Predictors
+
+ggplot(data, aes_string(x = "fracscore", y = "age")) +
+    geom_point(alpha = 0.6, color = "navy") +
+    geom_smooth(method = "lm", se = TRUE, color = "salmon") +
+    labs(title = paste("Age vs.", "Fracscore"),
+         x = "age",
+         y = "fracscore") +
+    theme_minimal()
+
+ggplot(data, aes_string(x = "fracscore", y = "bmi")) +
+    geom_point(alpha = 0.6, color = "navy") +
+    geom_smooth(method = "lm", se = TRUE, color = "salmon") +
+    labs(title = paste("BMI vs.", "Fracscore"),
+         x = "fracscore",
+         y = "bmi") +
+    theme_minimal()
+# 
+# ggplot(data, aes_string(x = "bonemed", y = "bonetreat")) +
+#     geom_point(alpha = 0.6, color = "navy") +
+#     geom_smooth(method = "lm", se = TRUE, color = "salmon") +
+#     labs(title = paste("Bonemed vs.", "Bonetreat"),
+#          x = "Bonemed",
+#          y = "Bonetreat") +
+#     theme_minimal()
+# 
+# ggplot(data, aes_string(x = "bonemed", y = "bonemed_fu")) +
+#     geom_point(alpha = 0.6, color = "navy") +
+#     geom_smooth(method = "lm", se = TRUE, color = "salmon") +
+#     labs(title = paste("Bonemed vs.", "Bonemed_Fu"),
+#          x = "Bonemed",
+#          y = "Bonemed_Fu") +
+#     theme_minimal()
+```
