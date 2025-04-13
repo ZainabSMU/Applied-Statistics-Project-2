@@ -14,6 +14,7 @@ library(GGally)
 library(corrplot)
 library(car)
 
+#?glow_bonemed
 data("glow_bonemed")
 
 # Converting any relevant variables to the proper data types
@@ -53,12 +54,16 @@ table(trainData$fracture)
 # We removed the sub_id, site_id, and phy_id variables because they don't apply to the actual dataset (just identifiers)
 # We also removed the bonemed_fu variable since the description of the glow_bonemed dataset said it was a follow up (indicating that it's after the fracture)
 
+# Continuous (Numeric) Variables: age, weight, height, bmi, fracscore
+continuous_vars <- c("age", "weight", "height", "bmi", "fracscore")
+
+# Ensures numeric
 for (var in continuous_vars) {
-  trainData[[var]] <- as.numeric(trainData[[var]])  # ensure numeric
+  trainData[[var]] <- as.numeric(trainData[[var]])
 }
 
-# Continuous (Numeric) Variables: age, weight, height, bmi, fracscore, bonemed
-continuous_vars <- c("age", "weight", "height", "bmi", "fracscore", "bonemed")
+# Saves all the plots in this 'pdf()...dev.off()' block (>O_O)>
+pdf("my_plots.pdf", width = 7, height = 5)
 
 for (var in continuous_vars) {
   p <- ggplot(trainData, aes_string(x = var, fill = "factor(fracture)")) +
@@ -72,8 +77,8 @@ for (var in continuous_vars) {
   print(p2)
 }
 
-# Binary (Factor) Variables: priorfrac, premeno, momfrac, armassist, bonetreat
-binary_vars <- c("priorfrac", "premeno", "momfrac", "armassist", "bonetreat", "smoke")
+# Binary (Factor) Variables: priorfrac, premeno, momfrac, armassist, smoke, bonemed, bonetreat
+binary_vars <- c("priorfrac", "premeno", "momfrac", "armassist", "smoke", "bonemed", "bonetreat")
 
 for (var in binary_vars) {
   p <- ggplot(trainData, aes_string(x = paste0("factor(", var, ")"), fill = "factor(fracture)")) +
@@ -86,4 +91,28 @@ for (var in binary_vars) {
 ggplot(trainData, aes(x = factor(raterisk), fill = factor(fracture))) +
   geom_bar(position = "fill") +
   labs(x = "Risk Rating", y = "Proportion", fill = "Fracture", title = "Self-Reported Risk by Fracture Outcome")
+
+numeric_vars <- glow_bonemed %>%
+  select(age, weight, height, bmi, fracscore)
+
+# Creating a pairwise plot matrix with all the numeric variables (as shown above) 
+ggpairs(numeric_vars)
+
+dev.off()
+
+# Fitting the logistic regression model
+logit_model <- glm(fracture ~ fracscore + bmi + priorfrac + momfrac + bonetreat + raterisk + bonemed + armassist,
+                   data = glow_bonemed, family = binomial)
+
+summary(logit_model)
+confint(logit_model)
+
+# Odds ratios
+exp(coef(logit_model))
+
+# Odds ratios with confidence intervals
+exp(cbind(OR = coef(logit_model), confint(logit_model)))
+
+# AIC for model comparison
+AIC(logit_model)
 
