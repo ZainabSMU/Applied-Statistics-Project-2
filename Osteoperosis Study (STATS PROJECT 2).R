@@ -7,6 +7,8 @@
 #install.packages("car")
 #install.packages("pROC")
 #install.packages("glmnet")
+#install.packages("effects")
+#install.packages("MASS")
 
 library(aplore3)
 library(caret)
@@ -17,6 +19,8 @@ library(corrplot)
 library(car)
 library(pROC)
 library(glmnet)
+library(effects)
+library(MASS)
 
 #?glow_bonemed
 data("glow_bonemed")
@@ -85,7 +89,7 @@ for (var in continuous_vars) {
   print(p2)
 }
 
-# Binary (Factor) Variables: priorfrac, premeno, momfrac, armassist, smoke, bonemed, bonetreat
+# Binary (Factor) / Categorical Variables: priorfrac, premeno, momfrac, armassist, smoke, bonemed, bonetreat
 binary_vars <- c("priorfrac", "premeno", "momfrac", "armassist", "smoke", "bonemed", "bonetreat")
 
 for (var in binary_vars) {
@@ -147,6 +151,8 @@ reduced_model <- glm(fracture ~ fracscore + raterisk + bonemed,
 
 summary(reduced_model)
 vif(reduced_model)
+plot(allEffects(reduced_model))
+exp(cbind(OR = coef(reduced_model), confint(reduced_model)))
 
 
 # Predicting on the Validation Set
@@ -280,7 +286,7 @@ complex_model <- glm(fracture ~ fracscore + bmi + priorfrac + momfrac + bonetrea
                        fracscore:bonemed +
                        priorfrac:raterisk +
                        bmi:bonetreat +
-                       fracscore * armassist,
+                       fracscore:armassist,
                      data = trainData2, family = binomial)
 
 summary(complex_model)
@@ -288,7 +294,7 @@ summary(complex_model)
 # Predicting on the test set
 complex_probs <- predict(complex_model, newdata = testData2, type = "response")
 
-# Using the improved threshold (0.3 rather than 0.1)
+# Using the improved threshold (0.3 rather than 0.1) (or rather than .5)
 complex_preds <- ifelse(complex_probs > 0.3, 1, 0)
 
 # Confusion Matrix to evaluate performance
@@ -306,63 +312,39 @@ plot(complex_roc, main = "ROC Curve: Complex Logistic Model")
 cat("AUC (Complex Model): ", auc(complex_roc), "\n")
 
 # -----------------------------------
-# Random Forest Model
+# LDA/QDA
 # -----------------------------------
-# Load libraries
-library(randomForest)
-library(caret)
 
-set.seed(123)
+# --- LDA ---
+lda_model <- lda(fracture ~ fracscore + bmi + priorfrac + momfrac + bonetreat +
+                   raterisk + bonemed + armassist, data = trainData2)
 
-# Creating a 75-25 split (the target variable here is 'fracture')
-trainIndex <- createDataPartition(glow_bonemed$fracture, p = 0.75, list = FALSE)
-trainData <- glow_bonemed[trainIndex, ]
-testData <- glow_bonemed[-trainIndex, ]
+# Predicting on the test set
+lda_pred <- predict(lda_model, newdata = testData2)
+lda_class <- lda_pred$class
+lda_probs <- lda_pred$posterior[, "Yes"]
 
-table(trainData$fracture)
+# Evaluating the LDA
+cat("LDA CONFUSION MATRIX\n")
+print(confusionMatrix(factor(lda_class, levels = c("No", "Yes")),
+                      testData2$fracture, positive = "Yes"))
+lda_roc <- roc(testData2$fracture, lda_probs)
+plot(lda_roc, main = "ROC Curve: LDA")
+cat("AUC (LDA):", auc(lda_roc), "\n\n")
 
-trainData <- trainData[, c("fracture","fracscore","bmi","priorfrac","momfrac","bonetreat","raterisk","bonemed","armassist")]
-testData <- testData[, c("fracture", "fracscore","bmi","priorfrac","momfrac","bonetreat","raterisk","bonemed","armassist")]
+# --- QDA ---
+qda_model <- qda(fracture ~ fracscore + bmi + priorfrac + momfrac + bonetreat +
+                   raterisk + bonemed + armassist, data = trainData2)
 
+# Predicting on the test set
+qda_pred <- predict(qda_model, newdata = testData2)
+qda_class <- qda_pred$class
+qda_probs <- qda_pred$posterior[, "Yes"]
 
-# Train the Random Forest model
-rf_model <- randomForest(fracture ~ ., 
-                         data = trainData, 
-                         ntree = 100,              # Number of trees
-                         mtry = sqrt(ncol(trainData) - 1), # Selectors per split
-                         importance = TRUE)
-
-# Step 5: Predict on test data
-# Ensure testData factor levels match training data
-for (col in names(testData)) {
-  if (is.factor(testData[[col]]) && col %in% names(trainData)) {
-    testData[[col]] <- factor(testData[[col]], levels = levels(trainData[[col]]))
-  }
-}
-predictions <- predict(rf_model, testData)
-
-# Step 6: Evaluate
-conf_mat <- confusionMatrix(predictions, testData$fracture)
-
-# Step 7: Print results
-print(rf_model)
-print(conf_mat)
-
-# ROC and AUC
-# Get class probabilities (specifically for class "yes")
-rf_probs <- predict(rf_model, testData, type = "prob")[, "Yes"]
-
-library(pROC)
-
-# Actual labels
-actual <- testData$fracture
-
-# ROC curve
-roc_obj <- roc(actual, rf_probs)
-
-# Plot ROC
-plot(roc_obj, col = "blue", main = "ROC Curve - Random Forest")
-
-# AUC value
-auc_value <- auc(roc_obj)
-cat("AUC (Random Forest): ", auc_value, "\n")
+# Evaluating the QDA
+cat("QDA CONFUSION MATRIX\n")
+print(confusionMatrix(factor(qda_class, levels = c("No", "Yes")),
+                      testData2$fracture, positive = "Yes"))
+qda_roc <- roc(testData2$fracture, qda_probs)
+plot(qda_roc, main = "ROC Curve: QDA")
+cat("AUC (QDA):", auc(qda_roc), "\n")
