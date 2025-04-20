@@ -1,28 +1,19 @@
-###OBJECTIVE 2 RANDOM FOREST MODEL
-# Install required packages if not already installed
-
 
 # Load libraries
 library(randomForest)
 library(caret)
-library(ggplot2)
 
 set.seed(123)
 
-# Creating a 70-30 split (the target variable here is 'fracture')
+# Creating a 75-25 split (the target variable here is 'fracture')
 trainIndex <- createDataPartition(glow_bonemed$fracture, p = 0.75, list = FALSE)
 trainData <- glow_bonemed[trainIndex, ]
 testData <- glow_bonemed[-trainIndex, ]
 
 table(trainData$fracture)
 
-# #omit missing data
-# trainData <- na.omit(trainData)
-# testData <- na.omit(testData)
-
-#Omit two categorical variables so model can still function well
-trainData <- trainData[, !names(trainData) %in% c("sub_id","site_id","phy_id","bonemed_fu")]
-testData <- testData[, !names(testData) %in% c("sub_id","site_id","phy_id","bonemed_fu")]
+trainData <- trainData[, c("fracture","fracscore","bmi","priorfrac","momfrac","bonetreat","raterisk","bonemed","armassist")]
+testData <- testData[, c("fracture", "fracscore","bmi","priorfrac","momfrac","bonetreat","raterisk","bonemed","armassist")]
 
 
 # Train the Random Forest model
@@ -41,6 +32,9 @@ for (col in names(testData)) {
 }
 predictions <- predict(rf_model, testData)
 
+#rf_rmse <- sqrt(mean((testData$fracture - predictions)^2))
+#cat("RF RMSE:", rf_rmse, "\n")
+
 # Step 6: Evaluate
 conf_mat <- confusionMatrix(predictions, testData$fracture)
 
@@ -48,22 +42,21 @@ conf_mat <- confusionMatrix(predictions, testData$fracture)
 print(rf_model)
 print(conf_mat)
 
+# ROC and AUC
+# Get class probabilities (specifically for class "yes")
+rf_probs <- predict(rf_model, testData, type = "prob")[, "Yes"]
 
-# Plot variable importance
-importance_df <- data.frame(Variable = rownames(importance(rf_model)), 
-                            Importance = importance(rf_model)[, 1])
+library(pROC)
 
-ggplot(importance_df, aes(x = reorder(Variable, Importance), y = Importance)) +
-  geom_bar(stat = "identity", fill = "blue", alpha = 0.7) +
-  coord_flip() +
-  ggtitle("Variable Importance in Random Forest") +
-  xlab("Variables") + ylab("Importance")
+# Actual labels
+actual <- testData$fracture
 
-# Hyperparameter tuning with Grid Search (Optional)
-tune_rf <- train(fracture ~ ., 
-                 data = trainData, 
-                 method = "rf", 
-                 tuneGrid = expand.grid(mtry = c(2, 5, 10)),
-                 trControl = trainControl(method = "cv", number = 5))
+# ROC curve
+roc_obj <- roc(actual, rf_probs)
 
-print(tune_rf)
+# Plot ROC
+plot(roc_obj, col = "blue", main = "ROC Curve - Random Forest")
+
+# AUC value
+auc_value <- auc(roc_obj)
+cat("AUC (Random Forest): ", auc_value, "\n")
